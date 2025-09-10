@@ -1,0 +1,62 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Neovim ${{ matrix.neovim }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        neovim: [v0.9.5, v0.10.3, nightly]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Setup Neovim ${{ matrix.neovim }}
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - name: Show versions
+        run: |
+          which nvim
+          nvim --version
+          just --version || true
+
+      - name: Install just
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just
+
+      - name: Install mini.nvim test dependency
+        run: |
+          mkdir -p deps/pack/deps/start
+          cd deps/pack/deps/start
+          git clone --depth=1 https://github.com/echasnovski/mini.nvim.git
+
+      - name: Run tests
+        env:
+          TERM: xterm
+        run: |
+          just test
